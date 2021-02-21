@@ -59,6 +59,9 @@ CREATE TABLE IF NOT EXISTS timetable (start_time TIMESTAMP PRIMARY KEY,
 """)
 
 # INSERT RECORDS
+#Instead of using INSERT to write in one row at a time I chose to use COPY to do it in bulk.
+# https://www.postgresql.org/docs/current/sql-copy.html
+
 
 songplay_table_insert = ("""
     INSERT INTO songplays 
