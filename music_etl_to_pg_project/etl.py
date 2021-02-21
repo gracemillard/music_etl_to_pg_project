@@ -2,42 +2,50 @@ import os
 import glob
 import psycopg2
 import pandas as pd
+import datetime  #to convert the weird timestamp
 from sql_queries import *
+
+import decouple
+from decouple
+from config import * #used to hide my password
+
+local_PG_DB_password=config('local_PG_DB_password')
 
 
 def process_song_file(cur, filepath):
     # open song file
-    df = 
+    df =pd.read_json(filepath, lines=True)
+
 
     # insert song record
-    song_data = 
+    song_data = df[['song_id','artist_id','title','duration','year']].values[0].tolist()
     cur.execute(song_table_insert, song_data)
     
     # insert artist record
-    artist_data = 
+    artist_data = df[['artist_id', 'artist_name', 'artist_location', 'artist_latitude', 'artist_longitude']].values[0].tolist()
     cur.execute(artist_table_insert, artist_data)
 
 
 def process_log_file(cur, filepath):
     # open log file
-    df = 
+    df = pd.read_json(filepath, lines=True)
 
     # filter by NextSong action
-    df = 
+    df = df[df.page == "NextSong"]
 
     # convert timestamp column to datetime
-    t = 
+    t = pd.to_datetime(df['ts'])
     
     # insert time data records
-    time_data = 
-    column_labels = 
-    time_df = 
+    time_data = [t.dt.year, t.dt.isocalendar().week,t.dt.month, t.dt.day,t.dt.hour,t.dt.weekday, t]
+    column_labels = ['year','week','month','day','hour','weekday','start_time']
+    time_df = pd.concat(time_data, keys=column_labels, axis=1)
 
     for i, row in time_df.iterrows():
         cur.execute(time_table_insert, list(row))
 
     # load user table
-    user_df = 
+    user_df = df[['userId','firstName','lastName','gender','level']].drop_duplicates()
 
     # insert user records
     for i, row in user_df.iterrows():
@@ -51,13 +59,14 @@ def process_log_file(cur, filepath):
         results = cur.fetchone()
         
         if results:
-            songid, artistid = results
+            song_id, artist_id = results
         else:
-            songid, artistid = None, None
+            song_id, artist_id = None, None
 
         # insert songplay record
-        songplay_data = 
-        cur.execute(songplay_table_insert, songplay_data)
+
+        songplay_data=(row.userId, song_id, artist_id, datetime.datetime.fromtimestamp(row.ts/1e3),row.sessionId, row.location, row.userAgent, row.level)
+        songplay_data = cur.execute(songplay_table_insert, songplay_data)
 
 
 def process_data(cur, conn, filepath, func):
@@ -80,7 +89,7 @@ def process_data(cur, conn, filepath, func):
 
 
 def main():
-    conn = psycopg2.connect("host=127.0.0.1 dbname=sparkifydb user=student password=student")
+    conn = psycopg2.connect("host=127.0.0.1 dbname=sparkifydb user=postgres password=local_PG_DB_password")
     cur = conn.cursor()
 
     process_data(cur, conn, filepath='data/song_data', func=process_song_file)
